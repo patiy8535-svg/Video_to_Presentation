@@ -1,0 +1,17 @@
+services:
+  v2p:
+    build: .
+    image: video-to-presentation:1.0
+    container_name: v2p
+    ports:
+      - "8000:8000"
+    environment:
+      MAX_UPLOAD_BYTES: "524288000"
+      UPLOAD_DIR: "/data/uploads"
+      OUTPUT_DIR: "/data/output"
+    volumes:
+      - v2p_data:/data
+    restart: unless-stopped
+
+volumes:
+  v2p_data:

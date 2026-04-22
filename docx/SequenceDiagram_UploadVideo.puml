@@ -1,0 +1,51 @@
+@startuml UploadVideo
+
+title Sequence Diagram 1 — Upload Video and Start Processing
+
+skinparam shadowing false
+skinparam sequenceMessageAlign center
+skinparam ParticipantPadding 20
+skinparam BoxPadding 10
+
+actor Client
+participant "VideoController" as Controller
+participant "VideoService" as Service
+participant "JobRepository" as Repo
+participant "Job" as Job
+database "File Storage" as Storage
+
+Client -> Controller : POST /api/videos (file)
+activate Controller
+
+Controller -> Controller : validateFile(file)
+
+alt invalid file
+    Controller --> Client : 400 Bad Request
+else valid file
+    Controller -> Storage : saveVideoFile(file)
+    activate Storage
+    Storage --> Controller : filePath
+    deactivate Storage
+
+    Controller -> Service : processVideo(videoFile)
+    activate Service
+
+    Service -> Job ** : create(PENDING)
+    activate Job
+    Service -> Repo : save(job)
+    activate Repo
+    Repo --> Service : ok
+    deactivate Repo
+
+    Service -> Service : startAsyncProcessing(job)
+
+    Service --> Controller : job
+    deactivate Service
+    deactivate Job
+
+    Controller --> Client : 202 Accepted {jobId, status}
+end
+
+deactivate Controller
+
+@enduml

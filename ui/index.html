@@ -1,0 +1,272 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Video to Presentation Service</title>
+<style>
+  :root {
+    --bg: #0f172a;
+    --panel: #1e293b;
+    --accent: #38bdf8;
+    --accent-strong: #0ea5e9;
+    --text: #e2e8f0;
+    --muted: #94a3b8;
+    --ok: #22c55e;
+    --err: #ef4444;
+    --border: #334155;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    font-family: "Segoe UI", Inter, Arial, sans-serif;
+    background: linear-gradient(160deg, #0b1120, #1e293b);
+    color: var(--text);
+    min-height: 100vh;
+  }
+  header {
+    padding: 28px 40px;
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+  header h1 { margin: 0; font-size: 22px; font-weight: 600; }
+  header small { color: var(--muted); }
+  main {
+    max-width: 960px;
+    margin: 40px auto;
+    padding: 0 24px;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 24px;
+  }
+  .card {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    padding: 24px;
+    box-shadow: 0 8px 24px rgba(0,0,0,.25);
+  }
+  .card h2 { margin-top: 0; font-size: 18px; }
+  .card.full { grid-column: 1 / -1; }
+  label { display: block; color: var(--muted); font-size: 13px; margin: 12px 0 6px; }
+  input[type="file"], select, input[type="text"] {
+    width: 100%;
+    padding: 10px 12px;
+    background: #0b1120;
+    border: 1px solid var(--border);
+    color: var(--text);
+    border-radius: 8px;
+    font-size: 14px;
+  }
+  button {
+    margin-top: 16px;
+    background: var(--accent);
+    color: #0b1120;
+    border: 0;
+    padding: 10px 18px;
+    border-radius: 8px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background .15s ease;
+  }
+  button:hover { background: var(--accent-strong); }
+  button:disabled { opacity: .5; cursor: not-allowed; }
+  .progress-track {
+    height: 10px;
+    border-radius: 6px;
+    background: #0b1120;
+    border: 1px solid var(--border);
+    overflow: hidden;
+    margin-top: 8px;
+  }
+  .progress-fill {
+    height: 100%;
+    width: 0%;
+    background: linear-gradient(90deg, var(--accent), var(--ok));
+    transition: width .3s ease;
+  }
+  .status-line { display: flex; justify-content: space-between; font-size: 14px; color: var(--muted); }
+  .status-value { color: var(--text); font-weight: 600; }
+  .status-value.ok { color: var(--ok); }
+  .status-value.err { color: var(--err); }
+  .log {
+    margin-top: 12px;
+    font-family: ui-monospace, Menlo, Consolas, monospace;
+    font-size: 12px;
+    background: #0b1120;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 10px;
+    max-height: 160px;
+    overflow-y: auto;
+    white-space: pre-wrap;
+  }
+  a.download {
+    display: inline-block;
+    margin-top: 12px;
+    color: var(--accent);
+    text-decoration: none;
+    font-weight: 600;
+  }
+  a.download:hover { text-decoration: underline; }
+  footer {
+    text-align: center;
+    color: var(--muted);
+    padding: 24px;
+    font-size: 13px;
+  }
+  footer a { color: var(--accent); text-decoration: none; }
+</style>
+</head>
+<body>
+<header>
+  <div>
+    <h1>Video → Presentation</h1>
+    <small>MVP UI prototype · POST /api/videos</small>
+  </div>
+  <a href="/docs" style="color: var(--accent); text-decoration: none;">API&nbsp;Docs ↗</a>
+</header>
+
+<main>
+  <section class="card">
+    <h2>1. Загрузка видео</h2>
+    <form id="upload-form">
+      <label for="file">Видеофайл (.mp4, .avi, .mov, .mkv, .webm)</label>
+      <input id="file" name="file" type="file" accept="video/*" required />
+
+      <label for="format">Формат вывода</label>
+      <select id="format" name="output_format">
+        <option value="MARP" selected>Marp (recommended)</option>
+        <option value="MARKDOWN">Plain Markdown</option>
+      </select>
+
+      <button id="submit-btn" type="submit">Загрузить и начать обработку</button>
+    </form>
+  </section>
+
+  <section class="card">
+    <h2>2. Статус задачи</h2>
+    <div class="status-line">
+      <span>Job ID:</span><span id="job-id" class="status-value">—</span>
+    </div>
+    <div class="status-line" style="margin-top:8px;">
+      <span>Статус:</span><span id="job-status" class="status-value">—</span>
+    </div>
+    <div class="status-line" style="margin-top:8px;">
+      <span>Прогресс:</span><span id="job-progress" class="status-value">0%</span>
+    </div>
+    <div class="progress-track"><div id="progress-fill" class="progress-fill"></div></div>
+
+    <div id="result" style="margin-top:16px; display:none;">
+      <a id="download-link" class="download" href="#" download>⬇ Скачать presentation.zip (md + картинки)</a>
+    </div>
+  </section>
+
+  <section class="card full">
+    <h2>Лог</h2>
+    <div id="log" class="log">Готов к загрузке видео.</div>
+  </section>
+</main>
+
+<footer>
+  Video to Presentation Service · v1.0 · <a href="/docs">OpenAPI</a>
+</footer>
+
+<script>
+const form = document.getElementById("upload-form");
+const fileInput = document.getElementById("file");
+const formatSelect = document.getElementById("format");
+const submitBtn = document.getElementById("submit-btn");
+const jobIdEl = document.getElementById("job-id");
+const jobStatusEl = document.getElementById("job-status");
+const jobProgressEl = document.getElementById("job-progress");
+const progressFill = document.getElementById("progress-fill");
+const logEl = document.getElementById("log");
+const resultEl = document.getElementById("result");
+const downloadLink = document.getElementById("download-link");
+
+let pollHandle = null;
+
+function log(message) {
+  const time = new Date().toLocaleTimeString();
+  logEl.textContent += `\n[${time}] ${message}`;
+  logEl.scrollTop = logEl.scrollHeight;
+}
+
+function setStatus(status) {
+  jobStatusEl.textContent = status;
+  jobStatusEl.className = "status-value";
+  if (status === "COMPLETED") jobStatusEl.classList.add("ok");
+  if (status === "FAILED") jobStatusEl.classList.add("err");
+}
+
+function setProgress(progress) {
+  jobProgressEl.textContent = `${progress}%`;
+  progressFill.style.width = `${progress}%`;
+}
+
+async function pollStatus(jobId) {
+  try {
+    const res = await fetch(`/api/videos/${jobId}/status`);
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const data = await res.json();
+
+    setStatus(data.status);
+    setProgress(data.progress);
+
+    if (data.status === "COMPLETED") {
+      clearInterval(pollHandle);
+      pollHandle = null;
+      submitBtn.disabled = false;
+      downloadLink.href = `/api/videos/${jobId}/presentation`;
+      resultEl.style.display = "block";
+      log(`✓ Презентация готова`);
+    } else if (data.status === "FAILED") {
+      clearInterval(pollHandle);
+      pollHandle = null;
+      submitBtn.disabled = false;
+      log(`✗ Ошибка: ${data.error || "unknown"}`);
+    }
+  } catch (err) {
+    log(`! ошибка опроса: ${err.message}`);
+  }
+}
+
+form.addEventListener("submit", async (e) => {
+  e.preventDefault();
+  if (!fileInput.files.length) return;
+
+  if (pollHandle) clearInterval(pollHandle);
+  resultEl.style.display = "none";
+  setProgress(0);
+  setStatus("UPLOADING");
+  submitBtn.disabled = true;
+
+  const body = new FormData();
+  body.append("file", fileInput.files[0]);
+  body.append("output_format", formatSelect.value);
+
+  log(`Загрузка: ${fileInput.files[0].name} (${(fileInput.files[0].size / 1024 / 1024).toFixed(1)} MB)`);
+
+  try {
+    const res = await fetch("/api/videos", { method: "POST", body });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({ detail: res.statusText }));
+      throw new Error(err.detail || `HTTP ${res.status}`);
+    }
+    const data = await res.json();
+    jobIdEl.textContent = data.job_id;
+    setStatus(data.status);
+    log(`Job создан: ${data.job_id}`);
+    pollHandle = setInterval(() => pollStatus(data.job_id), 1500);
+  } catch (err) {
+    log(`✗ ${err.message}`);
+    setStatus("FAILED");
+    submitBtn.disabled = false;
+  }
+});
+</script>
+</body>
+</html>

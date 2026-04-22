@@ -1,0 +1,84 @@
+@startuml UseCaseDiagram
+
+title Use Case Diagram — Video to Presentation Service
+
+skinparam shadowing false
+skinparam packageStyle rectangle
+left to right direction
+
+' =======================
+' Actors
+' =======================
+actor "User" as User
+actor "Administrator" as Admin
+actor "Developer /\nIntegrator" as Dev
+
+' =======================
+' System boundary
+' =======================
+rectangle "Video to Presentation Service" {
+
+    usecase "Upload video" as UC1
+    usecase "Check processing status" as UC2
+    usecase "Download presentation" as UC3
+    usecase "Select output format\n(Markdown / Marp)" as UC4
+    usecase "Configure extraction\nparameters" as UC5
+
+    usecase "Extract frames from video" as UC6
+    usecase "Detect slide borders" as UC7
+    usecase "Recognize unique slides" as UC8
+    usecase "Generate presentation" as UC9
+
+    usecase "Validate input file" as UC10
+    usecase "Handle processing errors" as UC11
+
+    usecase "Deploy service\n(Docker)" as UC12
+    usecase "View logs" as UC13
+    usecase "Manage storage\ncleanup" as UC14
+
+    usecase "Integrate via REST API" as UC15
+    usecase "View API documentation" as UC16
+}
+
+' =======================
+' User relationships
+' =======================
+User --> UC1
+User --> UC2
+User --> UC3
+User --> UC4
+User --> UC5
+
+' =======================
+' Developer relationships
+' =======================
+Dev --> UC15
+Dev --> UC16
+Dev --> UC1
+Dev --> UC2
+Dev --> UC3
+
+' =======================
+' Administrator relationships
+' =======================
+Admin --> UC12
+Admin --> UC13
+Admin --> UC14
+
+' =======================
+' Include / Extend
+' =======================
+UC1 ..> UC10 : <<include>>
+UC1 ..> UC6 : <<include>>
+UC6 ..> UC7 : <<include>>
+UC7 ..> UC8 : <<include>>
+UC8 ..> UC9 : <<include>>
+
+UC1 <.. UC11 : <<extend>>
+UC6 <.. UC11 : <<extend>>
+UC8 <.. UC11 : <<extend>>
+
+UC4 ..> UC9 : <<include>>
+UC5 ..> UC6 : <<include>>
+
+@enduml

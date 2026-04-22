@@ -1,0 +1,182 @@
+@startuml VideoToPresentationService
+
+title Class Diagram — Video to Presentation Service
+
+skinparam classAttributeIconSize 0
+skinparam classFontStyle bold
+skinparam shadowing false
+skinparam linetype ortho
+
+' =======================
+' REST API Layer
+' =======================
+package "API Layer" {
+    class VideoController {
+        - videoService : VideoService
+        + uploadVideo(file : MultipartFile) : JobResponse
+        + getStatus(jobId : String) : StatusResponse
+        + getPresentation(jobId : String) : File
+    }
+
+    class JobResponse {
+        + jobId : String
+        + status : String
+    }
+
+    class StatusResponse {
+        + jobId : String
+        + status : JobStatus
+        + progress : int
+    }
+
+    enum JobStatus {
+        PENDING
+        PROCESSING
+        COMPLETED
+        FAILED
+    }
+}
+
+' =======================
+' Service Layer
+' =======================
+package "Service Layer" {
+    class VideoService {
+        - frameExtractor : FrameExtractor
+        - recognizer : Recognizer
+        - generator : PresentationGenerator
+        - jobRepository : JobRepository
+        + processVideo(video : VideoFile) : Job
+        + getJob(jobId : String) : Job
+    }
+
+    class Job {
+        - id : String
+        - status : JobStatus
+        - progress : int
+        - resultPath : String
+        + updateStatus(status : JobStatus) : void
+        + updateProgress(value : int) : void
+    }
+
+    interface JobRepository {
+        + save(job : Job) : void
+        + findById(id : String) : Job
+    }
+}
+
+' =======================
+' Video Processing Core
+' =======================
+package "Video Processing" {
+    class VideoFile {
+        - path : String
+        - format : String
+        - duration : double
+        + open() : VideoStream
+    }
+
+    class FrameExtractor {
+        - frameRate : int
+        + extractFrames(video : VideoFile) : List<Frame>
+    }
+
+    class Frame {
+        - index : int
+        - timestamp : double
+        - image : Image
+        + getImage() : Image
+    }
+
+    class BorderDetector {
+        + detectBorders(frame : Frame) : Rectangle
+        + cropToSlide(frame : Frame, bounds : Rectangle) : Frame
+    }
+
+    class Rectangle {
+        + x : int
+        + y : int
+        + width : int
+        + height : int
+    }
+}
+
+' =======================
+' Recognition
+' =======================
+package "Recognition" {
+    class Recognizer {
+        - borderDetector : BorderDetector
+        - comparator : SlideComparator
+        + recognize(frames : List<Frame>) : List<Slide>
+    }
+
+    class SlideComparator {
+        - threshold : double
+        + areSimilar(a : Frame, b : Frame) : boolean
+    }
+
+    class Slide {
+        - index : int
+        - image : Image
+        - title : String
+        - caption : String
+        + setTitle(title : String) : void
+        + setCaption(caption : String) : void
+    }
+}
+
+' =======================
+' Presentation Generation
+' =======================
+package "Presentation" {
+    class PresentationGenerator {
+        - theme : String
+        + generate(slides : List<Slide>) : Presentation
+    }
+
+    class Presentation {
+        - slides : List<Slide>
+        - format : OutputFormat
+        + toMarkdown() : String
+        + toMarp() : String
+        + saveToFile(path : String) : void
+    }
+
+    enum OutputFormat {
+        MARKDOWN
+        MARP
+    }
+}
+
+' =======================
+' Relationships
+' =======================
+VideoController --> VideoService : uses
+VideoController ..> JobResponse : returns
+VideoController ..> StatusResponse : returns
+StatusResponse --> JobStatus
+
+VideoService --> FrameExtractor : uses
+VideoService --> Recognizer : uses
+VideoService --> PresentationGenerator : uses
+VideoService --> JobRepository : uses
+VideoService --> Job : manages
+Job --> JobStatus
+
+FrameExtractor --> VideoFile : reads
+FrameExtractor --> Frame : produces
+
+Recognizer --> BorderDetector : uses
+Recognizer --> SlideComparator : uses
+Recognizer --> Frame : processes
+Recognizer --> Slide : creates
+
+BorderDetector --> Rectangle : returns
+
+PresentationGenerator --> Slide : uses
+PresentationGenerator --> Presentation : creates
+Presentation --> OutputFormat
+Presentation o-- Slide : contains
+
+@enduml

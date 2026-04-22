@@ -1,0 +1,70 @@
+@startuml GetPresentation
+
+title Sequence Diagram 3 — Retrieve Processing Status and Presentation
+
+skinparam shadowing false
+skinparam sequenceMessageAlign center
+skinparam ParticipantPadding 20
+skinparam BoxPadding 10
+
+actor Client
+participant "VideoController" as Controller
+participant "VideoService" as Service
+participant "JobRepository" as Repo
+participant "Job" as Job
+database "File Storage" as Storage
+
+== Check status ==
+
+Client -> Controller : GET /api/videos/{jobId}/status
+activate Controller
+
+Controller -> Service : getJob(jobId)
+activate Service
+Service -> Repo : findById(jobId)
+activate Repo
+Repo --> Service : job
+deactivate Repo
+Service --> Controller : job
+deactivate Service
+
+alt job not found
+    Controller --> Client : 404 Not Found
+else job found
+    Controller --> Client : 200 OK {status, progress}
+end
+deactivate Controller
+
+== Download presentation ==
+
+Client -> Controller : GET /api/videos/{jobId}/presentation
+activate Controller
+
+Controller -> Service : getJob(jobId)
+activate Service
+Service -> Repo : findById(jobId)
+activate Repo
+Repo --> Service : job
+deactivate Repo
+Service --> Controller : job
+deactivate Service
+
+alt job not completed
+    Controller --> Client : 409 Conflict (not ready)
+else job completed
+    Controller -> Job : getResultPath()
+    activate Job
+    Job --> Controller : path
+    deactivate Job
+
+    Controller -> Storage : readFile(path)
+    activate Storage
+    Storage --> Controller : fileStream
+    deactivate Storage
+
+    Controller --> Client : 200 OK (presentation.md)
+end
+
+deactivate Controller
+
+@enduml
