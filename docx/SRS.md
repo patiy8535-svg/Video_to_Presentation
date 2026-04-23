@@ -2,190 +2,144 @@
 
 ## Video to Presentation Service
 
-**Версия:** 1.0
-**Дата:** 2026
-**Статус:** Draft
+**Version:** 1.0  
+**Date:** 2026  
+**Status:** Draft
 
 ---
 
-## 1. Введение
+## 1. Purpose
 
-### 1.1 Назначение документа
+The **Video to Presentation Service** converts lecture, talk, and presentation videos into structured **Markdown/Marp** slide decks.
 
-Настоящий документ описывает функциональные и нефункциональные требования к программному продукту **Video to Presentation Service** — сервису, преобразующему видеозаписи лекций, докладов и презентаций в структурированные файлы формата Markdown/Marp.
-
-### 1.2 Область применения
-
-Сервис предназначен для:
-- преподавателей и студентов, работающих с видеозаписями лекций;
-- докладчиков, желающих восстановить слайды из записей выступлений;
-- создателей образовательного контента, которым нужно быстро конспектировать видео в виде слайдов.
-
-### 1.3 Термины и определения
-
-| Термин | Определение |
-|--------|-------------|
-| Marp | Markdown Presentation Ecosystem — формат для создания презентаций на основе Markdown |
-| Слайд | Отдельный кадр презентации, распознанный на видео |
-| Frame | Отдельный кадр, извлечённый из видеопотока |
-| Recognizer | Модуль распознавания и выделения слайда из кадра |
-| REST API | Интерфейс взаимодействия по HTTP-протоколу |
-
-### 1.4 Ссылки
-
-- Спецификация Marp: https://marp.app/
-- CommonMark (Markdown): https://commonmark.org/
-- OpenCV documentation (обработка изображений)
+It is intended for:
+- teachers and students working with recorded lectures;
+- speakers who want to restore slides from recorded talks;
+- educational content creators who need fast slide-based summaries from video.
 
 ---
 
-## 2. Общее описание
+## 2. Product Overview
 
-### 2.1 Перспектива продукта
+The service is a standalone server application running in a **Docker container** and exposing a **REST API**.
 
-Сервис представляет собой автономное серверное приложение, упакованное в Docker-контейнер и предоставляющее REST API для загрузки видео и получения готовой презентации.
+Core capabilities:
+- upload a video file;
+- extract frames at a configurable rate;
+- detect and crop the slide area;
+- identify unique slides and remove duplicates;
+- generate a **Markdown/Marp** presentation;
+- return the result to the user.
 
-### 2.2 Функции продукта
+Supported roles:
+- **End user** — uploads a video and receives a presentation;
+- **Developer/Integrator** — uses the REST API in external systems;
+- **Administrator** — deploys and maintains the service.
 
-Основные функции:
-- приём видеофайла через REST API;
-- покадровый анализ видео;
-- выделение границ слайда на кадре;
-- распознавание уникальных слайдов (удаление дубликатов);
-- генерация Markdown/Marp-презентации;
-- выдача результата пользователю.
+Constraints:
+- supported input formats: **MP4, AVI, MOV**;
+- maximum file size is configurable;
+- output quality depends on source video quality;
+- the service runs in an isolated Docker environment.
 
-### 2.3 Характеристики пользователей
-
-| Тип пользователя | Описание |
-|------------------|----------|
-| Конечный пользователь | Загружает видео через API и получает презентацию |
-| Разработчик/интегратор | Встраивает сервис в сторонние приложения через REST API |
-| Администратор | Развёртывает и сопровождает сервис (Docker) |
-
-### 2.4 Ограничения
-
-- поддержка только распространённых форматов видео (MP4, AVI, MOV);
-- максимальный размер загружаемого файла ограничен конфигурацией;
-- качество распознавания зависит от качества исходного видео;
-- сервис работает в изолированном окружении Docker.
-
-### 2.5 Допущения и зависимости
-
-- на сервере доступны необходимые системные библиотеки (FFmpeg, OpenCV);
-- клиент способен выполнять HTTP-запросы;
-- видео содержит чётко различимую область с презентацией.
+Dependencies:
+- **FFmpeg** and **OpenCV** must be available;
+- clients must be able to send HTTP requests;
+- the source video must contain a clearly visible presentation area.
 
 ---
 
-## 3. Функциональные требования
+## 3. Functional Requirements
 
-### 3.1 Загрузка видео
+### 3.1 Video Upload
+- The system shall accept video upload via **POST REST API**.
+- The system shall validate file format and size.
+- The system shall return clear error messages for invalid files.
 
-**FR-1.** Система должна принимать видеофайл через REST API методом POST.
-**FR-2.** Система должна проверять формат и размер загружаемого файла.
-**FR-3.** При некорректном файле система должна возвращать понятное сообщение об ошибке.
+### 3.2 Frame Processing
+- The system shall extract frames from the video.
+- The frame extraction rate shall be configurable.
 
-### 3.2 Чтение кадров
+### 3.3 Slide Detection
+- The system shall automatically detect slide boundaries in each frame.
+- The system shall crop frames to the detected slide area.
 
-**FR-4.** Система должна извлекать кадры из видео с заданной частотой.
-**FR-5.** Частота извлечения кадров должна быть настраиваемой.
+### 3.4 Slide Recognition
+- The system shall compare frames and remove duplicates.
+- The system shall keep only unique slides in the output.
 
-### 3.3 Выделение границ презентации
+### 3.5 Presentation Generation
+- The system shall generate output in **Markdown/Marp** format.
+- Each unique slide shall become a separate presentation page.
+- The system should support optional titles and captions for slides.
 
-**FR-6.** Система должна автоматически определять область слайда на кадре.
-**FR-7.** Система должна обрезать кадр по найденным границам.
-
-### 3.4 Распознавание слайдов
-
-**FR-8.** Система должна сравнивать кадры между собой и исключать дубликаты.
-**FR-9.** Система должна сохранять только уникальные слайды в выходной материал.
-
-### 3.5 Генерация презентации
-
-**FR-10.** Система должна формировать файл в формате Markdown/Marp.
-**FR-11.** Каждый уникальный слайд должен быть отдельной страницей презентации.
-**FR-12.** Система должна поддерживать возможность добавления заголовков и подписей к слайдам.
-
-### 3.6 Выдача результата
-
-**FR-13.** Система должна возвращать готовый файл презентации по REST API.
-**FR-14.** Система должна позволять отслеживать статус обработки видео.
+### 3.6 Result Delivery
+- The system shall return the generated presentation via REST API.
+- The system shall provide processing status tracking.
 
 ---
 
-## 4. Нефункциональные требования
+## 4. Non-Functional Requirements
 
-### 4.1 Производительность
+### Performance
+- A **10-minute video** should be processed in **no more than 3 minutes** on recommended hardware.
+- The system should support multiple concurrent processing tasks.
 
-**NFR-1.** Обработка видео длительностью 10 минут должна занимать не более 3 минут на сервере с рекомендуемой конфигурацией.
-**NFR-2.** Система должна поддерживать одновременную обработку нескольких задач.
+### Reliability
+- The service shall handle invalid input without crashing.
+- The system shall log key processing events.
 
-### 4.2 Надёжность
+### Usability
+- The API shall be documented using **OpenAPI/Swagger**.
+- Error messages shall be informative.
 
-**NFR-3.** Сервис должен корректно обрабатывать ошибки входных данных без аварийного завершения.
-**NFR-4.** Система должна логировать ключевые события обработки.
+### Portability
+- The service shall run in Docker on **Linux, macOS, and Windows**.
+- No manual dependency installation shall be required beyond Docker.
 
-### 4.3 Удобство использования
+### Security
+- Uploaded video files shall be deleted after processing.
+- The system shall protect against excessively large uploads.
 
-**NFR-5.** API должно иметь понятную документацию (OpenAPI/Swagger).
-**NFR-6.** Сообщения об ошибках должны быть информативными.
-
-### 4.4 Переносимость
-
-**NFR-7.** Сервис должен запускаться в Docker-контейнере на Linux/macOS/Windows.
-**NFR-8.** Для запуска не требуется ручная установка зависимостей помимо Docker.
-
-### 4.5 Безопасность
-
-**NFR-9.** Загруженные видеофайлы должны удаляться после обработки.
-**NFR-10.** Сервис должен защищать от загрузки файлов чрезмерного размера.
-
-### 4.6 Сопровождаемость
-
-**NFR-11.** Код должен быть покрыт модульными тестами (Recognizer и ключевые модули).
-**NFR-12.** Архитектура должна следовать принципам SOLID и допускать расширение.
+### Maintainability
+- Key modules, especially the recognizer, shall be covered by unit tests.
+- The architecture should follow **SOLID** principles and support extension.
 
 ---
 
-## 5. Внешние интерфейсы
+## 5. External Interfaces
 
-### 5.1 Пользовательский интерфейс
+### REST API
 
-На этапе MVP взаимодействие происходит через REST API; UI-прототип описывает возможный веб-клиент.
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| POST | `/api/videos` | Upload a video and start processing |
+| GET | `/api/videos/{id}/status` | Get processing status |
+| GET | `/api/videos/{id}/presentation` | Download the generated presentation |
 
-### 5.2 Программный интерфейс (REST API)
+### Communication
+- Client-server communication shall use **HTTP/HTTPS**.
 
-| Метод | Endpoint | Описание |
-|-------|----------|----------|
-| POST | `/api/videos` | Загрузка видео и запуск обработки |
-| GET | `/api/videos/{id}/status` | Получение статуса обработки |
-| GET | `/api/videos/{id}/presentation` | Получение готовой презентации |
-
-### 5.3 Аппаратные интерфейсы
-
-Не предъявляются специальные требования, кроме наличия достаточного объёма CPU/RAM для видеообработки.
-
-### 5.4 Коммуникационные интерфейсы
-
-HTTP/HTTPS для взаимодействия клиента с сервером.
+### Hardware
+- No special hardware is required beyond sufficient **CPU/RAM** for video processing.
 
 ---
 
-## 6. Критерии приёмки
+## 6. Acceptance Criteria
 
-- реализованы все функциональные требования (FR-1 — FR-14);
-- успешно проходят unit-тесты модуля Recognizer;
-- сервис запускается одной командой `docker run`;
-- на тестовом видео получен корректный Markdown/Marp-файл;
-- документация API доступна и актуальна.
+The product is accepted if:
+- all functional requirements are implemented;
+- unit tests for the recognizer and key modules pass;
+- the service starts with a single `docker run` command;
+- a valid Markdown/Marp file is generated from a test video;
+- API documentation is available and up to date.
 
 ---
 
-## 7. Приложения
+## 7. Appendices
 
-- Use Case диаграмма;
-- Диаграммы последовательности (3 шт.);
-- Диаграмма классов;
-- UI-прототип;
-- Backlog задач.
+- Use case diagram;
+- sequence diagrams;
+- class diagram;
+- UI prototype;
+- backlog.

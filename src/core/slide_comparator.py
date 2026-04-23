@@ -14,7 +14,7 @@ from .models import Frame
 class SlideComparator:
     """Decides whether two frames show the same slide."""
 
-    def __init__(self, threshold: float = 0.12, hash_size: int = 16) -> None:
+    def __init__(self, threshold: float = 0.15, hash_size: int = 16) -> None:
         """
         :param threshold: max normalized Hamming distance [0..1] to call frames similar.
         :param hash_size: side of the dHash grid. 16 → 16*15 = 240-bit hash.

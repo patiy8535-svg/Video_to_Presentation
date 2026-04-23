@@ -1,182 +1,128 @@
-@startuml VideoToPresentationService
-
-title Class Diagram — Video to Presentation Service
-
-skinparam classAttributeIconSize 0
-skinparam classFontStyle bold
+@startuml class_diagram
+' =============================================================
+' Simplified Class Diagram — Video-to-Presentation Service
+' =============================================================
+skinparam backgroundColor #FFFFFF
 skinparam shadowing false
-skinparam linetype ortho
+skinparam ArrowColor #1E2761
+skinparam classBackgroundColor #CADCFC
+skinparam classBorderColor #1E2761
+skinparam classFontColor #1E2761
 
-' =======================
-' REST API Layer
-' =======================
-package "API Layer" {
-    class VideoController {
-        - videoService : VideoService
-        + uploadVideo(file : MultipartFile) : JobResponse
-        + getStatus(jobId : String) : StatusResponse
-        + getPresentation(jobId : String) : File
-    }
+package "video_to_presentation" {
 
-    class JobResponse {
-        + jobId : String
-        + status : String
-    }
+  class VideoController {
+    - service : VideoService
+    + upload_video(file: MultipartFile) : Job
+    + get_status(job_id: str) : Job
+    + get_presentation(job_id: str) : Presentation
+  }
 
-    class StatusResponse {
-        + jobId : String
-        + status : JobStatus
-        + progress : int
-    }
+  class VideoService {
+    - extractor  : FrameExtractor
+    - recognizer : Recognizer
+    - generator  : PresentationGenerator
+    - repository : JobRepository
+    + process_video(video: VideoFile) : Job
+    + get_job(job_id: str) : Job
+  }
 
-    enum JobStatus {
-        PENDING
-        PROCESSING
-        COMPLETED
-        FAILED
-    }
+  class VideoFile {
+    - path : str
+    - format : str
+    + open() : VideoStream
+  }
+
+  class FrameExtractor {
+    + extract_frames(video: VideoFile) : list<Frame>
+  }
+
+  class Frame {
+    + index : int
+    + timestamp_s : float
+    + image : Image
+  }
+
+  class Recognizer {
+    - border_detector : BorderDetector
+    - comparator : SlideComparator
+    + recognize(frames: list<Frame>) : list<Slide>
+  }
+
+  class BorderDetector {
+    + crop_slide(frame: Frame) : Frame
+  }
+
+  class SlideComparator {
+    + are_similar(a: Frame, b: Frame) : bool
+  }
+
+  class Slide {
+    + index : int
+    + image : Image
+    + title : str
+    + caption : str
+  }
+
+  class PresentationGenerator {
+    - theme : str
+    + generate(slides: list<Slide>) : Presentation
+  }
+
+  class Presentation {
+    - slides : list<Slide>
+    - format : OutputFormat
+    + to_markdown() : str
+    + to_marp() : str
+    + save(path: str) : void
+  }
+
+  class Job {
+    + id : str
+    + status : JobStatus
+    + progress : int
+    + result_path : str
+  }
+
+  interface JobRepository {
+    + save(job: Job) : void
+    + find_by_id(id: str) : Job
+  }
+
+  enum JobStatus {
+    PENDING
+    PROCESSING
+    COMPLETED
+    FAILED
+  }
+
+  enum OutputFormat {
+    MARKDOWN
+    MARP
+  }
 }
 
-' =======================
-' Service Layer
-' =======================
-package "Service Layer" {
-    class VideoService {
-        - frameExtractor : FrameExtractor
-        - recognizer : Recognizer
-        - generator : PresentationGenerator
-        - jobRepository : JobRepository
-        + processVideo(video : VideoFile) : Job
-        + getJob(jobId : String) : Job
-    }
+VideoController *-- VideoService : uses
 
-    class Job {
-        - id : String
-        - status : JobStatus
-        - progress : int
-        - resultPath : String
-        + updateStatus(status : JobStatus) : void
-        + updateProgress(value : int) : void
-    }
+VideoService *-- FrameExtractor : uses
+VideoService *-- Recognizer : uses
+VideoService *-- PresentationGenerator : uses
+VideoService *-- JobRepository : uses
+VideoService ..> Job
 
-    interface JobRepository {
-        + save(job : Job) : void
-        + findById(id : String) : Job
-    }
-}
+FrameExtractor ..> VideoFile
+FrameExtractor ..> Frame
 
-' =======================
-' Video Processing Core
-' =======================
-package "Video Processing" {
-    class VideoFile {
-        - path : String
-        - format : String
-        - duration : double
-        + open() : VideoStream
-    }
+Recognizer *-- BorderDetector : uses
+Recognizer *-- SlideComparator : uses
+Recognizer ..> Frame
+Recognizer ..> Slide
 
-    class FrameExtractor {
-        - frameRate : int
-        + extractFrames(video : VideoFile) : List<Frame>
-    }
+PresentationGenerator ..> Slide
+PresentationGenerator ..> Presentation
+Presentation o-- Slide
 
-    class Frame {
-        - index : int
-        - timestamp : double
-        - image : Image
-        + getImage() : Image
-    }
-
-    class BorderDetector {
-        + detectBorders(frame : Frame) : Rectangle
-        + cropToSlide(frame : Frame, bounds : Rectangle) : Frame
-    }
-
-    class Rectangle {
-        + x : int
-        + y : int
-        + width : int
-        + height : int
-    }
-}
-
-' =======================
-' Recognition
-' =======================
-package "Recognition" {
-    class Recognizer {
-        - borderDetector : BorderDetector
-        - comparator : SlideComparator
-        + recognize(frames : List<Frame>) : List<Slide>
-    }
-
-    class SlideComparator {
-        - threshold : double
-        + areSimilar(a : Frame, b : Frame) : boolean
-    }
-
-    class Slide {
-        - index : int
-        - image : Image
-        - title : String
-        - caption : String
-        + setTitle(title : String) : void
-        + setCaption(caption : String) : void
-    }
-}
-
-' =======================
-' Presentation Generation
-' =======================
-package "Presentation" {
-    class PresentationGenerator {
-        - theme : String
-        + generate(slides : List<Slide>) : Presentation
-    }
-
-    class Presentation {
-        - slides : List<Slide>
-        - format : OutputFormat
-        + toMarkdown() : String
-        + toMarp() : String
-        + saveToFile(path : String) : void
-    }
-
-    enum OutputFormat {
-        MARKDOWN
-        MARP
-    }
-}
-
-' =======================
-' Relationships
-' =======================
-VideoController --> VideoService : uses
-VideoController ..> JobResponse : returns
-VideoController ..> StatusResponse : returns
-StatusResponse --> JobStatus
-
-VideoService --> FrameExtractor : uses
-VideoService --> Recognizer : uses
-VideoService --> PresentationGenerator : uses
-VideoService --> JobRepository : uses
-VideoService --> Job : manages
-Job --> JobStatus
-
-FrameExtractor --> VideoFile : reads
-FrameExtractor --> Frame : produces
-
-Recognizer --> BorderDetector : uses
-Recognizer --> SlideComparator : uses
-Recognizer --> Frame : processes
-Recognizer --> Slide : creates
-
-BorderDetector --> Rectangle : returns
-
-PresentationGenerator --> Slide : uses
-PresentationGenerator --> Presentation : creates
-Presentation --> OutputFormat
-Presentation o-- Slide : contains
+Job ..> JobStatus
+Presentation ..> OutputFormat
 
 @enduml

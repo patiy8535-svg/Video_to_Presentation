@@ -1,9 +1,13 @@
-"""Recognizer — turns a stream of frames into unique slides.
+"""Recognizer — turns a stream of frames into a list of unique slides.
 
 Flow (see docx/SequenceDiagram_ProcessVideo.puml):
-    1. For each incoming frame: detect the slide region and crop to it.
-    2. Compare the cropped frame to the last accepted slide.
-    3. Keep only frames that differ enough — those are new unique slides.
+    1. Calibrate BorderDetector on a sample of frames to lock in a stable
+       slide quadrilateral (robust to occlusions like a moving presenter).
+    2. For each frame: crop + dewarp to the slide region.
+    3. Compare the cropped frame against EVERY already-accepted slide.
+       Accept it only if it's different from all of them. This also handles
+       the case where the presenter revisits an earlier slide — the revisit
+       is not stored as a second copy.
 """
 from __future__ import annotations
 
@@ -26,16 +30,20 @@ class Recognizer:
         self.comparator = comparator or SlideComparator()
 
     def recognize(self, frames: List[Frame]) -> List[Slide]:
-        unique: List[Slide] = []
-        last_frame: Optional[Frame] = None
+        # Stabilize the slide region across the whole clip, so the same pixels
+        # are cropped from every frame. Essential for reliable dedup.
+        calibrate = getattr(self.border_detector, "calibrate", None)
+        if callable(calibrate):
+            calibrate(frames)
+
+        accepted: List[Frame] = []
+        slides: List[Slide] = []
 
         for frame in frames:
-            bounds = self.border_detector.detect_borders(frame)
-            cropped = self.border_detector.crop_to_slide(frame, bounds)
+            cropped = self.border_detector.process(frame)
+            if any(self.comparator.are_similar(existing, cropped) for existing in accepted):
+                continue
+            slides.append(Slide(index=len(slides), image=cropped.get_image()))
+            accepted.append(cropped)
 
-            if last_frame is None or not self.comparator.are_similar(last_frame, cropped):
-                slide = Slide(index=len(unique), image=cropped.get_image())
-                unique.append(slide)
-                last_frame = cropped
-
-        return unique
+        return slides

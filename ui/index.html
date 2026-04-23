@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="ru">
+<html lang="en">
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
@@ -124,54 +124,53 @@
 <header>
   <div>
     <h1>Video → Presentation</h1>
-    <small>MVP UI prototype · POST /api/videos</small>
   </div>
   <a href="/docs" style="color: var(--accent); text-decoration: none;">API&nbsp;Docs ↗</a>
 </header>
 
 <main>
   <section class="card">
-    <h2>1. Загрузка видео</h2>
+    <h2>1. Upload Video</h2>
     <form id="upload-form">
-      <label for="file">Видеофайл (.mp4, .avi, .mov, .mkv, .webm)</label>
+      <label for="file">Video file (.mp4, .avi, .mov, .mkv, .webm)</label>
       <input id="file" name="file" type="file" accept="video/*" required />
 
-      <label for="format">Формат вывода</label>
+      <label for="format">Output Format</label>
       <select id="format" name="output_format">
         <option value="MARP" selected>Marp (recommended)</option>
         <option value="MARKDOWN">Plain Markdown</option>
       </select>
 
-      <button id="submit-btn" type="submit">Загрузить и начать обработку</button>
+      <button id="submit-btn" type="submit">Upload and Start Processing</button>
     </form>
   </section>
 
   <section class="card">
-    <h2>2. Статус задачи</h2>
+    <h2>2. Job Status</h2>
     <div class="status-line">
       <span>Job ID:</span><span id="job-id" class="status-value">—</span>
     </div>
     <div class="status-line" style="margin-top:8px;">
-      <span>Статус:</span><span id="job-status" class="status-value">—</span>
+      <span>Status:</span><span id="job-status" class="status-value">—</span>
     </div>
     <div class="status-line" style="margin-top:8px;">
-      <span>Прогресс:</span><span id="job-progress" class="status-value">0%</span>
+      <span>Progress:</span><span id="job-progress" class="status-value">0%</span>
     </div>
     <div class="progress-track"><div id="progress-fill" class="progress-fill"></div></div>
 
     <div id="result" style="margin-top:16px; display:none;">
-      <a id="download-link" class="download" href="#" download>⬇ Скачать presentation.zip (md + картинки)</a>
+      <a id="download-link" class="download" href="#" download>⬇ Download presentation.zip (md + images)</a>
     </div>
   </section>
 
   <section class="card full">
-    <h2>Лог</h2>
-    <div id="log" class="log">Готов к загрузке видео.</div>
+    <h2>Log</h2>
+    <div id="log" class="log">Ready to upload a video.</div>
   </section>
 </main>
 
 <footer>
-  Video to Presentation Service · v1.0 · <a href="/docs">OpenAPI</a>
+  Video to Presentation Service · v1.0
 </footer>
 
 <script>
@@ -222,15 +221,15 @@ async function pollStatus(jobId) {
       submitBtn.disabled = false;
       downloadLink.href = `/api/videos/${jobId}/presentation`;
       resultEl.style.display = "block";
-      log(`✓ Презентация готова`);
+      log(`✓ Presentation is ready`);
     } else if (data.status === "FAILED") {
       clearInterval(pollHandle);
       pollHandle = null;
       submitBtn.disabled = false;
-      log(`✗ Ошибка: ${data.error || "unknown"}`);
+      log(`✗ Error: ${data.error || "unknown"}`);
     }
   } catch (err) {
-    log(`! ошибка опроса: ${err.message}`);
+    log(`! Polling error: ${err.message}`);
   }
 }
 
@@ -248,7 +247,7 @@ form.addEventListener("submit", async (e) => {
   body.append("file", fileInput.files[0]);
   body.append("output_format", formatSelect.value);
 
-  log(`Загрузка: ${fileInput.files[0].name} (${(fileInput.files[0].size / 1024 / 1024).toFixed(1)} MB)`);
+  log(`Uploading: ${fileInput.files[0].name} (${(fileInput.files[0].size / 1024 / 1024).toFixed(1)} MB)`);
 
   try {
     const res = await fetch("/api/videos", { method: "POST", body });
@@ -259,7 +258,7 @@ form.addEventListener("submit", async (e) => {
     const data = await res.json();
     jobIdEl.textContent = data.job_id;
     setStatus(data.status);
-    log(`Job создан: ${data.job_id}`);
+    log(`Job created: ${data.job_id}`);
     pollHandle = setInterval(() => pollStatus(data.job_id), 1500);
   } catch (err) {
     log(`✗ ${err.message}`);

@@ -15,10 +15,19 @@ from src.core.models import Frame, Rectangle
 
 @dataclass
 class MockBorderDetector:
-    """A BorderDetector stub that returns the full frame as its bounds."""
+    """A BorderDetector stub that passes frames through untouched."""
 
+    process_calls: List[int] = field(default_factory=list)
     detect_calls: List[int] = field(default_factory=list)
     crop_calls: List[int] = field(default_factory=list)
+    calibrate_calls: List[int] = field(default_factory=list)
+
+    def calibrate(self, frames) -> None:
+        self.calibrate_calls.append(len(frames))
+
+    def process(self, frame: Frame) -> Frame:
+        self.process_calls.append(frame.index)
+        return frame
 
     def detect_borders(self, frame: Frame) -> Rectangle:
         self.detect_calls.append(frame.index)

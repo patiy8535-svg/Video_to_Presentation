@@ -1,71 +1,15 @@
-@startuml ProcessVideo
+@startuml
+title Simplified Sequence Diagram — Video Processing
 
-title Sequence Diagram 2 — Video Processing Pipeline
+participant VideoService
+participant Recognizer
+participant PresentationGenerator
 
-skinparam shadowing false
-skinparam sequenceMessageAlign center
-skinparam ParticipantPadding 20
-skinparam BoxPadding 10
+VideoService -> Recognizer : processVideo(videoFile)
+Recognizer --> VideoService : slides
 
-participant "VideoService" as Service
-participant "FrameExtractor" as Extractor
-participant "Recognizer" as Recognizer
-participant "BorderDetector" as Border
-participant "SlideComparator" as Comparator
-participant "PresentationGenerator" as Generator
-participant "Job" as Job
-database "File Storage" as Storage
+VideoService -> PresentationGenerator : generate(slides)
+PresentationGenerator --> VideoService : presentation
 
-Service -> Job : updateStatus(PROCESSING)
-
-Service -> Extractor : extractFrames(videoFile)
-activate Extractor
-Extractor -> Storage : readVideo(path)
-activate Storage
-Storage --> Extractor : videoStream
-deactivate Storage
-Extractor --> Service : frames[]
-deactivate Extractor
-
-Service -> Recognizer : recognize(frames)
-activate Recognizer
-
-loop for each frame
-    Recognizer -> Border : detectBorders(frame)
-    activate Border
-    Border --> Recognizer : bounds
-    Border -> Border : cropToSlide(frame, bounds)
-    Border --> Recognizer : croppedFrame
-    deactivate Border
-end
-
-loop compare frames
-    Recognizer -> Comparator : areSimilar(frameA, frameB)
-    activate Comparator
-    Comparator --> Recognizer : boolean
-    deactivate Comparator
-end
-
-Recognizer -> Recognizer : buildUniqueSlides()
-Recognizer --> Service : slides[]
-deactivate Recognizer
-
-Service -> Job : updateProgress(75)
-
-Service -> Generator : generate(slides)
-activate Generator
-Generator -> Generator : toMarp()
-Generator -> Storage : saveToFile(path)
-activate Storage
-Storage --> Generator : ok
-deactivate Storage
-Generator --> Service : presentation
-deactivate Generator
-
-Service -> Job : updateStatus(COMPLETED)
-
-alt processing error
-    Service -> Job : updateStatus(FAILED)
-end
-
+VideoService -> VideoService : updateStatus(COMPLETED)
 @enduml
